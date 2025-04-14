@@ -128,10 +128,15 @@ return { -- LSP Configuration & Plugins
     --        For example, to see the options for `lua_ls`, you could go to: https://luals.github.io/wiki/settings/
     local servers = {
       rust_analyzer = {},
-      ruff_lsp = {},
+      ruff = {},
       pylsp = {
-        plugins = {
-          pylsp_mypy = { enabled = true },
+        settings = {
+          pylsp = {
+            plugins = {
+              pylsp_mypy = { enabled = true },
+              pycodestyle = { enabled = false },
+            },
+          },
         },
       },
       lua_ls = {
@@ -187,6 +192,15 @@ return { -- LSP Configuration & Plugins
           -- certain features of an LSP (for example, turning off formatting for tsserver)
           server.capabilities = vim.tbl_deep_extend('force', {}, capabilities, server.capabilities or {})
           require('lspconfig')[server_name].setup(server)
+        end,
+        ['pyright'] = function ()
+            -- disable diagnostics here. all diagnostics are in mypy & ruff
+            -- override_opts is my local func, pass any opts here
+            require("lspconfig").pyright.setup(override_opts {
+                handlers = {
+                    ['textDocument/publishDiagnostics'] = function() end
+                }
+            })
         end,
       },
     }
