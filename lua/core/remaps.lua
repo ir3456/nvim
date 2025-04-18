@@ -39,7 +39,7 @@ vim.keymap.set("n", "<C-l>", ":wincmd l<CR>")
 vim.keymap.set("n", "<C-k>", ":wincmd k<CR>")
 vim.keymap.set("n", "<C-j>", ":wincmd j<CR>")
 
-vim.keymap.set("n", "<leader>u", ":UndoTreeToggle<CR>")
+vim.keymap.set("n", "<leader>u", ":UndotreeToggle<CR>")
 
 vim.keymap.set("n", "<C-_>", "?[⚀⚁⚂⚃⚄⚅]\\{2\\}<CR>")
 vim.keymap.set("n", "<C-=>", "/[⚀⚁⚂⚃⚄⚅]\\{2\\}<CR>")
