@@ -35,14 +35,14 @@ vim.keymap.set("n", "<C-w>", ":w<CR>")
 
 vim.keymap.set("n", "<C-n>", ":NvimTreeToggle<CR>")
 vim.keymap.set("n", "<C-h>", ":wincmd h<CR>")
-vim.keymap.set("n", "<C-l>", ":wincmd l<CR>")
+vim.keymap.set("n", "<C-l>", ":wincmd l<CR> :e<CR>")
 vim.keymap.set("n", "<C-k>", ":wincmd k<CR>")
 vim.keymap.set("n", "<C-j>", ":wincmd j<CR>")
 
 vim.keymap.set("n", "<leader>u", ":UndotreeToggle<CR>")
 
-vim.keymap.set("n", "<C-_>", "?[⚀⚁⚂⚃⚄⚅]\\{2\\}<CR>")
-vim.keymap.set("n", "<C-=>", "/[⚀⚁⚂⚃⚄⚅]\\{2\\}<CR>")
+vim.keymap.set("n", "<C-_>", "?\\v([⚀⚁⚂⚃⚄⚅]{2}|^\\> )<CR>")
+
 
 function _G.set_terminal_keymaps()
   local opts = { buffer = 0 }
@@ -57,6 +57,12 @@ function _G.set_terminal_keymaps()
   vim.keymap.set('t', '<C-w>', [[<C-\><C-n><C-w>]], opts)
   vim.keymap.set('t', '<C-q>', [[<C-\><C-n>:qa<CR>]], opts)
 end
+vim.keymap.set('t', '<C-x>', function()
+  local chan = vim.b.terminal_job_id
+  if chan then
+    vim.api.nvim_chan_send(chan, '\x1b')  -- ESC character
+  end
+end, { noremap = true, silent = true })
 
 vim.keymap.set("n", "<leader>gs", vim.cmd.Git);
 vim.keymap.set("n", "<leader>gc", ":Git commit -m \"\"<Left>");
@@ -71,6 +77,17 @@ vim.cmd('autocmd! TermOpen term://* lua set_terminal_keymaps()')
 vim.keymap.set('i', '<C-q>', [[<C-c> :qa <CR>]])
 vim.keymap.set('n', '<C-q>', [[:qa <CR>]])
 
+vim.keymap.set("n", "<leader>c", function()
+  vim.cmd("wincmd k")
+  vim.cmd("wincmd l")
+  vim.cmd("wincmd l")
+  vim.cmd("rightbelow 90vsplit | terminal")
+  local job_id = vim.b.terminal_job_id
+  if job_id then
+    vim.fn.chansend(job_id, "claude -c\n")
+  end
+  vim.cmd("startinsert")
+end, { desc = "Terminal on right (90 cols)" })
 
 vim.keymap.set("n", "<leader>gr", ":Telescope lsp_references<CR>")
 
@@ -91,3 +108,66 @@ end
 -- Create a command to call the function
 vim.api.nvim_create_user_command("CommentBox", comment_box, {})
 vim.keymap.set("n", "<leader>cb", ":CommentBox<CR>");
+
+
+local function param_dict()
+  local start_line = vim.fn.search("^ *def ", "bnW")
+  if start_line == 0 then
+    print("No function definition found above cursor")
+    return
+  end
+
+  local line = vim.fn.getline(start_line)
+  local last_char = line:sub(-1)
+
+  local params = {}
+
+  if last_char == "(" then
+    local lnum = start_line + 1
+
+    while true do
+      local current = vim.fn.getline(lnum)
+      local first_char = current:match("^%s*(%S)")
+      if first_char == ")" then
+        break
+      else
+        for param in current:gmatch("[^,]+") do
+          local name = param:match("^%s*([^:%s]+)")
+          if name then
+            table.insert(params, name)
+          end
+        end
+      end
+
+      lnum = lnum + 1
+    end
+
+  else
+    local inner = line:match("%((.*)%)")
+    for param in inner:gmatch("[^,]+") do
+      local name = param:match("^%s*([^:%s]+)")
+      if name then
+        table.insert(params, name)
+      end
+    end
+  end
+
+  local result = "{"
+  for i, name in ipairs(params) do
+    result = result .. string.format("\"%s\": %s", name, name)
+    if i < #params then
+      result = result .. ", "
+    end
+  end
+  result = result .. "}"
+
+  local row, col = unpack(vim.api.nvim_win_get_cursor(0))
+  local current_line = vim.api.nvim_get_current_line()
+
+  local new_line = current_line:sub(1, col) .. result .. current_line:sub(col + 1)
+  vim.api.nvim_buf_set_lines(0, row - 1, row, true, { new_line })
+end
+
+-- Create a command to call the function
+vim.api.nvim_create_user_command("ParamDict", param_dict, {})
+vim.keymap.set("n", "<leader>dp", ":ParamDict<CR>");
